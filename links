@@ -1,3 +1,9 @@
+json validation
+
+https://marshmallow.readthedocs.io/en/stable/extending.html
+
+
+
 nested json validation using flask marshmallow
 
 https://medium.com/bitproject/recently-i-created-a-restful-api-with-flask-where-my-models-had-many-parameters-75da1db870b7
