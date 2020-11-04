@@ -1,0 +1,149 @@
+from flask_restful import Resource
+from flask import Flask, request, jsonify, json
+from flask_sqlalchemy import SQLAlchemy
+from flask_serialize import FlaskSerializeMixin
+from marshmallow import fields, Schema, ValidationError, pre_load, post_load, validates_schema, pprint, INCLUDE
+from marshmallow.validate import Length
+import os
+import logging
+
+app = Flask(__name__)
+
+DATA_KEY_ERROR = 'Input data must have a "data" key.'
+
+
+class AppError(Exception):
+    def toJSON(self):
+        return json.dumps(self, default=lambda o: o.__dict__,
+                          sort_keys=True, indent=4)
+
+
+# This schema is used to validate the activity form data
+class ActivityFormSchema(Schema):
+    name = fields.Str(required=True, valdiate=Length(max=100))
+    description = fields.Str(required=True, valdiate=Length(max=100))
+    image = fields.Str(required=True, valdiate=Length(max=1000))
+    badge_prereqs = fields.List(fields.Dict(), required=True)
+    module_prereqs = fields.List(fields.Int(), required=True)
+    students = fields.Nested("StudentSchema", only=("name", "username", "roles", "image"), many=True)
+
+    # More fields go here...
+    class Meta:
+        # Fields to show when sending data
+        fields = ("name", "description", "image", "badge_prereqs", "module_prereqs", "students")
+
+
+class StudentSchema(Schema):
+    # name = fields.Str(required=True)
+    name = fields.Str()
+    # username = fields.Email(required=True)
+    username = fields.Str()
+    roles = fields.Str(required=False)
+    image = fields.Str(required=True)
+    activities = fields.Nested("ActivitySchema", only=("name", "description", "image"), many=True)
+
+    class Meta:
+        # Fields to show when sending data
+        fields = ("name", "username", "roles", "image")
+        ordered = True
+
+
+class BandSchema(Schema):
+    name = fields.Str()
+    data = fields.Str()
+
+    @validates_schema
+    def unwrap_envelope(self, data, **kwargs):
+        if "data" not in data:
+            raise ValidationError(f'{DATA_KEY_ERROR}', 'error')
+
+
+class BaseSchema(Schema):
+    rins_number = fields.Str()
+    pp = fields.Str()
+
+    class Meta:
+        pass_original = True
+
+    def handle_error(self, exc, data, **kwargs):
+        """Log and raise our custom exception when (de)serialization fails."""
+        # logging.error(exc.messages)
+        # raise AppError("An error occurred with input: {0}".format(data))
+        # raise AppError(exc.messages)
+        return exc.messages
+
+    @validates_schema
+    def validate_param(self, datas, **kwargs):
+        print(os.getenv('LANG'))
+        # print(os.getenv('HOST'))
+        for data in datas:
+            if "rins_number" not in data:
+                raise ValidationError("rins_number key is required")
+
+    # @pre_load
+    def validate_unknown(self, data, **kwargs):
+        error = {}
+        print(data)
+        print(fields)
+        if "rins_number" not in data:
+            raise ValidationError("rins_number keyss is required")
+        # for d in data:
+        #     if d not in fields:
+        #         raise ValidationError("unknown fields..{}".format(d))
+
+
+@app.route('/api/')
+def hello_world():
+    return "Hello World!"
+
+
+@app.route('/api/init', methods=['POST'])
+def one_param():
+    print("init param ")
+    param = request.get_json()
+    sch = BaseSchema()
+    try:
+        sch.load(param)
+        # pprint(sch.load(param))
+    except ValidationError as err:
+        print("validation error")
+        err.messages
+        print(err.messages)
+        return jsonify(err.messages)
+    except AppError as appErr:
+        # print(appErr)
+        # return appErr
+        print("appError")
+        print(appErr.__dict__)
+        return appErr.__dict__
+
+    return jsonify({"status": "OK"}), 400
+
+    # rins_init=BaseSchema()
+    # param=request.get_json()
+    # try:
+    #     rins_init.load({"rins_number": "The Band"})
+    # except ValidationError as err:
+    #     return jsonify(err.messages),400
+
+    # return "Hello World!"
+
+
+@app.route('/api/student', methods=['POST'])
+def student_one():
+    activity_form_schema = ActivityFormSchema()
+    args = request.get_json()
+    print(args["students"])
+    try:
+        dataF = activity_form_schema.load(args)
+        return "success"
+    except ValidationError as err:
+        print(err.messages)
+        print(err.valid_data)
+        return jsonify(err.messages), 400
+    # print(args["badge_prereqs"])
+    return "hllll"
+
+
+if __name__ == '__main__':
+    app.run(host="0.0.0.0", port=5000, debug=True)
