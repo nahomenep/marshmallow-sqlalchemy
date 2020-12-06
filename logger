@@ -1,0 +1,17 @@
+
+
+# working module..ok
+    FORMAT = '%(asctime)-15s %(clientip)s %(user)-8s %(message)s'
+    # logging.basicConfig(format=FORMAT)
+    logging.basicConfig(filename='output.log', format=FORMAT)
+    #logging.getLogger('output.log', format=FORMAT)
+    d = {'clientip': '192.168.0.1', 'user': 'fbloggs'}
+    logging.debug('Protocol problem: %s', 'connection reset', extra=d)
+    logging.error('Protocol problem: %s', 'connection reset', extra=d)
+    
+    
+https://stackoverflow.com/questions/17558552/how-do-i-add-custom-field-to-python-log-format-string
+
+https://docs.python.org/3/howto/logging-cookbook.html
+
+https://docs.python.org/3/library/logging.html#logging.Logger.debug
